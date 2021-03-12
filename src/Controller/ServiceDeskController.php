@@ -9,7 +9,6 @@ use Symfony\Component\Routing\Annotation\Route;
 use Goutte\Client;
 use Symfony\Component\HttpClient\HttpClient;
 
-use App\Controller\ConfigController;
 use App\Entity\SDTicket;
 use App\Entity\SDRegistroTiempo;
 
@@ -284,12 +283,12 @@ class ServiceDeskController extends AbstractController
     }
 
     public function resetCookies(){
-        $cookieFilePath = ConfigController::$cookie_path;
+        $cookieFilePath = $this->getParameter('proejct.path').$this->getParameter('proejct.path.cookies');
         file_put_contents($cookieFilePath, '');
     }
 
     public function saveCookies($client){
-        $cookieFilePath = ConfigController::$cookie_path;
+        $cookieFilePath = $this->getParameter('proejct.path').$this->getParameter('proejct.path.cookies');
         $cookieJar = $client->getCookieJar();
         $cookies = $cookieJar->all();
         if ($cookies) {
@@ -298,7 +297,7 @@ class ServiceDeskController extends AbstractController
     }
 
     public function loadCookies($client){
-        $cookieFilePath = ConfigController::$cookie_path;
+        $cookieFilePath = $this->getParameter('proejct.path').$this->getParameter('proejct.path.cookies');
         if (is_file($cookieFilePath)) {
             // Load cookies and populate browserkit's cookie jar
             $cookieJar = $client->getCookieJar();
