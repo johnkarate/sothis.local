@@ -283,12 +283,12 @@ class ServiceDeskController extends AbstractController
     }
 
     public function resetCookies(){
-        $cookieFilePath = $this->getParameter('proejct.path').$this->getParameter('proejct.path.cookies');
+        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('project.path.cookies');
         file_put_contents($cookieFilePath, '');
     }
 
     public function saveCookies($client){
-        $cookieFilePath = $this->getParameter('proejct.path').$this->getParameter('proejct.path.cookies');
+        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('project.path.cookies');
         $cookieJar = $client->getCookieJar();
         $cookies = $cookieJar->all();
         if ($cookies) {
@@ -297,7 +297,7 @@ class ServiceDeskController extends AbstractController
     }
 
     public function loadCookies($client){
-        $cookieFilePath = $this->getParameter('proejct.path').$this->getParameter('proejct.path.cookies');
+        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('project.path.cookies');
         if (is_file($cookieFilePath)) {
             // Load cookies and populate browserkit's cookie jar
             $cookieJar = $client->getCookieJar();
