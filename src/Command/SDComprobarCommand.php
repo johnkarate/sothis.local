@@ -8,9 +8,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 use App\Controller\ServiceDeskController;
 
-class SDCategorizarCommand extends Command
+class SDComprobarCommand extends Command
 {
-    protected static $defaultName = 'app:sd:categorizar';
+    protected static $defaultName = 'app:sd:comprobar';
     private $controller;
 
     public function __construct(ServiceDeskController $controller){
@@ -20,7 +20,7 @@ class SDCategorizarCommand extends Command
 
     protected function configure()
     {
-        $this->setDescription('Importa los tickets e inserta registro de trabajo.');
+        $this->setDescription('Actualiza los detalles de los tickets.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -28,14 +28,14 @@ class SDCategorizarCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         //Comprobamos que estemos entre las 7:00 y las 21:00... sino, no hacemos nada...
-        $estoyCurrando =  7 <= intval(date('H')) && intval(date('H')) < 21;
+        $estoyCurrando = true;// 7 <= intval(date('H')) && intval(date('H')) < 21;
         if($estoyCurrando){ 
             //Dormimos entre 0 minutos y 10 minutos
-            $tiempoDormir = rand(0, 600);
+            $tiempoDormir = 0;// rand(0, 600);
             echo date('YmdHis')." - Dormimos $tiempoDormir \r\n";
             sleep($tiempoDormir);
             echo date('YmdHis')." - Despertamos \r\n";
-            $this->controller->categorizacion();
+            $this->controller->comprobarTickets();
             echo date('YmdHis')." - Categorización terminada \r\n";
         } else {
             echo date('YmdHis')." - No estoy currando... \r\n";

@@ -12,11 +12,13 @@ parameters:
     servicedesk.passwd: '%env(resolve:SERVICEDESK_PASSWD)%'
     servicedesk.vistas.categorizacion: '17716_MyView'
     servicedesk.vistas.registros: '18025_MyView'
+    servicedesk.path.cookies: 'files/cookies/servicedesk.txt'
 
     movistar.url: '%env(resolve:MOVISTAR_DOMAIN)%'
     movistar.url.login: 'mimovistar-cliente/es-es/particulares/login.html'
     movistar.user: '%env(resolve:MOVISTAR_USER)%'
     movistar.passwd: '%env(resolve:MOVISTAR_PASSWD)%'
+    movistar.path.cookies: 'files/cookies/movistar.txt'
 
 
 services:

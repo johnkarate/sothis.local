@@ -15,13 +15,23 @@ use App\Entity\SDRegistroTiempo;
 class ServiceDeskController extends AbstractController
 {
 
-    
-    /**
-     * @Route("/servicedesk/registros")
+
+    /***
+     * 1) IMPORTACIÓN
+     * 
+     * - GET TICKETS VISTA (CO5)
+     * -> Si DB -> No hacemos nada... 
+     * -> No DB -> Persistimos y obtenemos registro de horas
+     *      -> Obtenemos registroHoras y persistimos
+     *      -> Si Cliente == MdE 
+     *          -> Si registroHoras == 0 -> registramos registroHoras + persistimos
+     *          -> Si !Categorizado -> Categorizamos + persistimos
+     * 
      */
-    public function importarRegistros(): ?Response 
-    {
-        $client = new Client(HttpClient::create(['verify_peer' => false, 'verify_host' => false]));
+
+    public function importarTickets() {
+        $em = $this->getDoctrine()->getManager();
+        $client = $this->getClient();
                 
         //Login
         if(!$this->loadCookies($client)){
@@ -30,74 +40,71 @@ class ServiceDeskController extends AbstractController
             $this->saveCookies($client);
         }
         
-        $em = $this->getDoctrine()->getManager();
-        
-        $ticketsInfo = $this->getTickets($client, $this->getParameter('servicedesk.vistas.registros'));
+        $ticketsInfo = $this->getTicketsVista($client, $this->getParameter('servicedesk.vistas.registros'));
         //Si no tenemos tickets -> Tal vez no estemos logueados... 
         if(empty($ticketsInfo)){
             $this->resetCookies(); 
             $this->login($client);
             $this->saveCookies($client);
-            $ticketsInfo = $this->getTickets($client, $this->getParameter('servicedesk.vistas.registros'));
+            $ticketsInfo = $this->getTicketsVista($client, $this->getParameter('servicedesk.vistas.registros'));
+        }
+        if(empty($ticketsInfo)){
+            //OJO: algo no funciona no funciona bien -> avisamos de que algo no funciona
         }
 
         foreach($ticketsInfo as $ticketInfo){
-            $ticketDB = $em->getRepository(SDTicket::class)->findOneBy(['sdId' => $ticketInfo['ticketId']]);
-            $importaRegistrosHora = false;
-            if(empty($ticketDB)){
-                $ticketDB = new SDTicket();
-                $ticketDB->setFechaImportacion(new \DateTime());
-                $importaRegistrosHora = true;
-            }
-            if(!$importaRegistrosHora && $ticketDB->getSdEstado() !== $ticketInfo['estado']){
-                $importaRegistrosHora = true;
-                $ticketDB->setSdEstado($ticketInfo['estado']);
-            }
-
-            if(!$importaRegistrosHora && ($ticketDB->getFechaRevision() < new \DateTime() && !in_array($ticketDB->getSdEstado(), ['Pendiente de Cierre', 'Cerrado']))){
-                $importaRegistrosHora = true;
-            }
+            $ticketDB->setFechaImportacion(new \DateTime());
             $ticketDB->loadFromArray($ticketInfo);
 
-            //Ojo con la categorización
-            if($importaRegistrosHora){
-                echo date('Ymdhis')." Revisamos ticket [".$ticketDB->getSdId().' - '.$ticketDB->getNombre()."]\r\n";
-                $fechaRevision = new \DateTime(); 
-                $fechaRevision->add(new \DateInterval('PT2H'));
+            //Revisaremos este ticket dentro de 3 horas... 
+            $fechaRevision = new \DateTime(); 
+            $fechaRevision->add(new \DateInterval("PT3H"));
+            $ticketDB->setFechaRevision($fechaRevision);
 
-                $ticketDB->setFechaRevision($fechaRevision);
+            //Obtenemos los detalles del ticket... 
+            // -> PTE
+
+            //Guardamos el ticket
+            $em->persist($ticketDB);
+
+            //Obtenemos y persistimos los registros de horas que tenemos... 
+            $registroHoras = $this->getRegistrosHoras($client, $ticketDB);
+            foreach($registroHoras as $registroHora){
+                //Importamos registroHoras... (si hay alguno, es nuevo, porque no tenemos ticket...)
+                $registroTiempo = new SDRegistroTiempo(); 
+                $registroTiempo->loadFromArray($registroHora);
                 
-                $registrosHoras =  $this->getRegistrosHoras($client, $ticketDB);
-                foreach($registrosHoras as $registroHoras){
-                    $registroHorasDB = $em->getRepository(SDRegistroTiempo::class)->findOneBy([
-                        'ticket' => $ticketDB,
-                        'inicio' => $registroHoras['inicio'],
-                        'tecnico' => $registroHoras['tecnico']
-                    ]);
-                    if(empty($registroHorasDB)){
-                        $registroHorasDB = new SDRegistroTiempo(); 
-                        $registroHorasDB->setTicket($ticketDB);
-                    }
-                    $registroHorasDB->loadFromArray($registroHoras);
-                    $em->persist($registroHorasDB);
-                }
+                $ticketDB->addRegistrosTiempo($registroTiempo);
+
+                $em->persist($registroTiempo);
             }
 
-            $em->persist($ticketDB);
+            //Si el cliente es MdE -> creamos registro tiempo y categorizamos (si procede)
+            if($ticketDB->isClienteMdE()){
+                //Revisaremos el ticket cada hora...
+                $fechaRevision = new \DateTime(); 
+                $fechaRevision->add(new \DateInterval("PT1H"));
+                $ticketDB->setFechaRevision($fechaRevision);
+
+                //Si no tenemos registros de horas, creamos uno... 
+                if(empty($registroHoras)){
+                    $this->insertaRegistroTrabajoPrimeraRespuesta($client, $ticketDB);
+                }
+
+                //Categorizamos (si procede)
+                // -> PTE
+
+            }
             $em->flush(); 
         }
-        $em->flush(); 
-        die('Importados');
         return null;
     }
 
-    /**
-     * @Route("/servicedesk/categorizacion")
-     */
-    public function categorizacion(): ?Response
-    {
-        $client = new Client(HttpClient::create(['verify_peer' => false, 'verify_host' => false]));
-                
+    public function comprobarTickets(){
+        $em = $this->getDoctrine()->getManager();
+        $client = $this->getClient();
+
+                        
         //Login
         if(!$this->loadCookies($client)){
             echo "Hacemos login de nuevo \r\n";
@@ -105,97 +112,69 @@ class ServiceDeskController extends AbstractController
             $this->saveCookies($client);
         }
         
-        $em = $this->getDoctrine()->getManager();
-        
-        $ticketsInfo = $this->getTickets($client, $this->getParameter('servicedesk.vistas.categorizacion'));
+        $ticketsInfo = $this->getTicketsVista($client, $this->getParameter('servicedesk.vistas.registros'));
         //Si no tenemos tickets -> Tal vez no estemos logueados... 
         if(empty($ticketsInfo)){
             $this->resetCookies(); 
             $this->login($client);
             $this->saveCookies($client);
-            $ticketsInfo = $this->getTickets($client, $this->getParameter('servicedesk.vistas.categorizacion'));
+            $ticketsInfo = $this->getTicketsVista($client, $this->getParameter('servicedesk.vistas.registros'));
         }
 
-        foreach($ticketsInfo as $ticketInfo){
-            $ticketDB = $em->getRepository(SDTicket::class)->findOneBy(['sdId' => $ticketInfo['ticketId']]);
-            $revisaRegistrosHoras = empty($ticketDB) || empty($ticket->getRegistrosHoras()); //Si no tenemos ticket o si el ticket está en estado Abierto o Asignado (tanto en la DB como en el SD)
-            if(empty($ticketDB)){
-                $ticketDB = new SDTicket();
-                $ticketDB->setFechaImportacion(new \DateTime());
-                $revisaRegistrosHoras = true;
-            }
+        $ticketsRevision = $em->getRepository(SDTicket::class)->findPtesRevisar(); 
+        $checkMaxNumTickets = 100;
+        $numTickets = 0;
+        foreach($ticketsRevision as $ticket){
+            if($numTickets < $checkMaxNumTickets){
+                $ticketInfo = $this->getTicketDetail($client, $ticket->getSdId());
 
-            $ticketDB->loadFromArray($ticketInfo);
-            
-            //Vamos a revisar los registros de horas del ticket... 
-            if($revisaRegistrosHoras){
-                $registroHoras = $this->getRegistrosHoras($client, $ticketDB);
-                if(empty($registroHoras)){
-                    echo "Insertamos tiempo en ticket ".$ticketDB->getSdId()."[".$ticketDB->getNombre()."] \r\n";
-                    $this->setRegistrosHora($client, $ticketDB);
+                echo "Comprobamos ".$ticket->getNombre().'['.$ticket->getSdId().']'."\r\n";
+                //Actualizamos datos del ticket
+                $ticket->loadFromDetailsArray($ticketInfo);
+
+                //Actualizamos registros de horas
+                $registros = $this->getRegistrosHoras($client, $ticket);
+
+                foreach($registros as $registroInfo){
+                    $registroDB = $em->getRepository(SDRegistroTiempo::class)->findOneBy([
+                        'ticket' => $ticket,
+                        'tecnico' => $registroInfo['tecnico'],
+                        'inicio' => $registroInfo['inicio']
+                    ]);
+                    if(empty($registroDB)){
+                        $registroDB = new SDRegistroTiempo(); 
+                        $ticket->addRegistrosTiempo($registroDB);
+                    }
+                    $registroDB->loadFromArray($registroInfo);
+
+                    $em->persist($registroDB);
                 }
+
+                //Seteamos nueva revisión
+                $ticket->setFechaRevision($ticket->calcFechaRevision());
+                $em->persist($ticket);
+                $em->flush();
+                $numTickets++;
             }
-            $em->persist($ticketDB);
         }
-        $em->flush(); 
         
-        return null;
+        
     }
 
     /**
-     * @Route("/servicedesk/test")
+     * OBTENEMOS LOS TICKETS QUE TENEMOS EN UNA VISTA... 
      */
-    public function test(): ?Response
-    {
-        $client = new Client(HttpClient::create(['verify_peer' => false, 'verify_host' => false]));
-                
-        //Login
-        if(!$this->loadCookies($client)){
-            echo "Hacemos login de nuevo \r\n";
-            $this->login($client);
-            $this->saveCookies($client);
-        }
-        
-        $em = $this->getDoctrine()->getManager();
-        
-        $ticketsInfo = $this->getTickets($client, $this->getParameter('servicedesk.vistas.categorizacion'));
-        //Si no tenemos tickets -> Tal vez no estemos logueados... 
-        if(empty($ticketsInfo)){
-            $this->resetCookies(); 
-            $this->login($client);
-            $this->saveCookies($client);
-            $ticketsInfo = $this->getTickets($client, $this->getParameter('servicedesk.vistas.categorizacion'));
-        }
-
-        foreach($ticketsInfo as $ticketInfo){
-            $test = $this->getTicketDetail($client, $ticketInfo['ticketId']);
-            dump($test);
-            die();
-
-        }
-        $em->flush(); 
-        
-        return null;
-    }
-
-
-
-    public function login(Client $client){
-        $crawler = $client->request('GET', $this->getParameter('servicedesk.domain'));
-        $form = $crawler->selectButton('Login')->form();
-        
-        $crawler = $client->submit($form, ['j_username' => $this->getParameter('servicedesk.user'), 'j_password' => $this->getParameter('servicedesk.passwd')]);
-        return $client;
-    }
-    
-    public function getTickets(Client $client, $vistaId){
-        $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WOListView.do?viewName='.$vistaId);
+    private function getTicketsVista(Client $client, $vistaId){
+        $url = $this->getParameter('servicedesk.domain').'WOListView.do?viewName='.$vistaId;
+        $crawler = $client->request('GET', $url);
         $tickets = [];
+        
         $ticketsTable = $crawler->filter('table#RequestsView_TABLE')->filter('tr')->each(function ($tr, $i) {
             return $tr->filter('td')->each(function ($td, $i) {
                 return trim($td->text());
             });
         });
+        
         foreach($ticketsTable as $ticketsRow){
             if(sizeof($ticketsRow) == 20){
                 $tickets[] = [
@@ -215,8 +194,9 @@ class ServiceDeskController extends AbstractController
         return $tickets;
     }
 
-    public function getTicketDetail(Client $client, $ticketId){
+    private function getTicketDetail(Client $client, $ticketId){
         $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WorkOrder.do?woMode=viewWO&fromListView=true&woID='.$ticketId);
+       
         //Detalles de la solicitud
         $ticketTableInfo = $crawler->filter('div#ProDetails')->filter('div.rows')->each(function ($tr, $i) {
             return $tr->filter('td')->each(function ($td, $i) {
@@ -226,13 +206,47 @@ class ServiceDeskController extends AbstractController
         $ticketInfo = [];
         foreach($ticketTableInfo as $ticketArray){
             if(sizeof($ticketArray) == 2){
-                $ticketInfo[$ticketArray[0]] = substr($ticketArray[1], 0, strlen($ticketArray[1]) - strlen($ticketArray[0]) -1);
+                $key = $ticketArray[0];
+
+                if($key == 'Estado'){
+                    $ticketInfo[$key] = substr($ticketArray[1], 0, strpos($ticketArray[1], 'function') -1);
+                } elseif($key == 'Activo(s)'){
+                    $ticketInfo[$key] = 'N/A';
+                } elseif($key == 'Técnico'){
+                    $ticketInfo[$key] = substr($ticketArray[1], 0, strpos($ticketArray[1], 'parent') -1);
+                } else {
+                    $ticketInfo[$key] = substr($ticketArray[1], 0, strlen($ticketArray[1]) - strlen($ticketArray[0]) -1);
+                }
             }
         }
         return $ticketInfo;
     }
 
-    public function getRegistrosHoras(Client $client, SDTicket $ticket){
+    /**
+     * Gestión de REGISTROS DE HORAS
+     */
+
+    private function insertaRegistroTrabajoPrimeraRespuesta(Client $client, SDTicket $ticket){
+        $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WorkLogAction.do?createnew=worklog&SUBREQUEST=true&module=request&associatedEntity=request&scopeid=2&associatedEntityID='.$ticket->getSdId());
+        $form = $crawler->selectButton('Guardar')->form();
+        
+        $tecnicos = [50132, 50131, 50132, 50131, 18319, 26402, 16293, 18621];
+        $tecnicosNombre = ['david.lozano','jorge.cuesta','david.lozano', 'jorge.cuesta', 'david.rubio', 'juan.martinez', 'jesus.mata', 'daniel.vazquez'];
+        $tecnicoId = rand(0, sizeof($tecnicos) -1);
+        $descripciones = ['Categorización', 'Categorizamos ticket', 'ticket', 'Imputación.', 'categorizamos ticket', 'imputamos ticket.'];
+        $descripcionesId = rand(0,sizeof($descripciones) -1);
+
+        echo date('YmdHis')." - El ticket [".$ticket->getSdId()." - ".$ticket->getNombre()." - ".$ticket->getSdSitio()."] lo categoriza $tecnicosNombre[$tecnicoId] ($descripciones[$descripcionesId])\r\n";
+
+        $crawler = $client->submit($form, [
+            'technicianid' => $tecnicos[$tecnicoId], 
+            'timespenthrs' => 0, 
+            'timespentmins' => 0,
+            'description' => $descripciones[$descripcionesId],
+        ]);
+    }
+
+    private function getRegistrosHoras(Client $client, SDTicket $ticket){
         $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'TaskDefAction.do?SUBREQUEST=true&from=request&module=request&associatedEntityID='.$ticket->getSdId());
         //WorkLogListView_TABLE
         $registrosHoras = $crawler->filter('table#WorkLogListView_TABLE.tableComponent')->filter('tr')->each(function ($tr, $i) {
@@ -261,34 +275,27 @@ class ServiceDeskController extends AbstractController
 
         return $registrosTiempo;
     }
+    
 
-    public function setRegistrosHora(Client $client, SDTicket $ticket){
-        $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WorkLogAction.do?1614587285016&&createnew=worklog&SUBREQUEST=true&module=request&associatedEntity=request&scopeid=2&associatedEntityID='.$ticket->getSdId());
-        $form = $crawler->selectButton('Guardar')->form();
+    /**
+     * Gestión de COOKIES Y CONEXIONES
+     */
+
+    private function login(Client $client){
+        $crawler = $client->request('GET', $this->getParameter('servicedesk.domain'));
+        $form = $crawler->selectButton('Login')->form();
         
-        
-        $tecnicos = [50132, 50131, 50132, 50131, 18319, 26402, 16293, 18621];
-        $tecnicosNombre = ['david.lozano','jorge.cuesta','david.lozano', 'jorge.cuesta', 'david.rubio', 'juan.martinez', 'jesus.mata', 'daniel.vazquez'];
-        $tecnicoId = rand(0, sizeof($tecnicos) -1);
-        $descripciones = ['Categorización', 'Categorizamos ticket', 'ticket', 'Imputación.', 'categorizamos ticket', 'imputamos ticket.'];
-
-        echo date('YmdHis')." - El ticket [".$ticket->getSdId()." - ".$ticket->getNombre()."] lo categoriza $tecnicosNombre[$tecnicoId] \r\n";
-
-        $crawler = $client->submit($form, [
-            'technicianid' => $tecnicos[$tecnicoId], 
-            'timespenthrs' => 0, 
-            'timespentmins' => 0,
-            'description' => $descripciones[rand(0,sizeof($descripciones)-1)],
-        ]);
+        $crawler = $client->submit($form, ['j_username' => $this->getParameter('servicedesk.user'), 'j_password' => $this->getParameter('servicedesk.passwd')]);
+        return $client;
     }
 
-    public function resetCookies(){
-        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('project.path.cookies');
+    private function resetCookies(){
+        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('servicedesk.path.cookies');
         file_put_contents($cookieFilePath, '');
     }
 
-    public function saveCookies($client){
-        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('project.path.cookies');
+    private function saveCookies($client){
+        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('servicedesk.path.cookies');
         $cookieJar = $client->getCookieJar();
         $cookies = $cookieJar->all();
         if ($cookies) {
@@ -296,8 +303,8 @@ class ServiceDeskController extends AbstractController
         }
     }
 
-    public function loadCookies($client){
-        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('project.path.cookies');
+    private function loadCookies($client){
+        $cookieFilePath = $this->getParameter('project.path').$this->getParameter('servicedesk.path.cookies');
         if (is_file($cookieFilePath)) {
             // Load cookies and populate browserkit's cookie jar
             $cookieJar = $client->getCookieJar();
@@ -308,6 +315,16 @@ class ServiceDeskController extends AbstractController
             return true;
         }
         return false;
+    }
+
+    private function getClient(){
+         return new Client(HttpClient::create([
+            'verify_peer' => false, 
+            'verify_host' => false,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
+            ]
+        ]));
     }
 
 

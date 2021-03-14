@@ -60,6 +60,50 @@ class SDTicket
     private $sdCuenta;
     
     /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdImpacto;
+    
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdTipoSolicitud;
+    
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdModo;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdGrupo;
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdTecnico;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdPrioridad;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdCategoria;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdSubcategoria;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $sdArticulo;
+    
+    /**
      * @ORM\Column(type="datetime", nullable=true)
      */
     private $fechaImportacion;
@@ -87,6 +131,19 @@ class SDTicket
             ->setSdSitio($ticketInfo['site'])
             ->setSdEstado($ticketInfo['estado'])
         ;
+        return $this;
+    }
+    public function loadFromDetailsArray($ticketInfo): ?self {
+        $this->setSdCategoria($ticketInfo['Categoría'])
+            ->setSdSubcategoria($ticketInfo['Subcategoría'])
+            ->setSdArticulo($ticketInfo['Artículo'])
+            ->setSdImpacto($ticketInfo['Impacto'])
+            ->setSdTipoSolicitud($ticketInfo['Tipo de solicitud'])
+            ->setSdModo($ticketInfo['Modo'])
+            ->setSdGrupo($ticketInfo['Grupo'])
+            ->setSdTecnico($ticketInfo['Técnico'])
+            ->setSdPrioridad($ticketInfo['Prioridad'])
+            ->setSdEstado($ticketInfo['Estado']);
         return $this;
     }
 
@@ -190,6 +247,83 @@ class SDTicket
         return $this;
     }
 
+    public function getSdImpacto(): ?string 
+    {
+        return $this->sdImpacto;
+    }
+    public function setSdImpacto($sdImpacto): self 
+    {
+        $this->sdImpacto = $sdImpacto;
+        return $this;
+    }
+
+    public function getSdTipoSolicitud(): ?string 
+    {
+        return $this->sdTipoSolicitud;
+    }
+
+    public function setSdTipoSolicitud($sdTipoSolicitud): self
+    {
+        $this->sdTipoImpacto = $sdTipoSolicitud;
+        return $this;
+    }
+
+    public function getSdModo(): ?string {
+        return $this->sdModo; 
+    }
+    public function setSdModo($sdModo): self {
+        $this->sdModo = $sdModo;
+        return $this;
+    }
+
+    public function getSdGrupo(): ?string {
+        return $this->sdGrupo; 
+    }
+    public function setSdGrupo($sdGrupo): self {
+        $this->sdGrupo = $sdGrupo;
+        return $this;
+    }
+
+    public function getSdTecnico(): ?string {
+        return $this->sdTecnico;
+    }
+    public function setSdTecnico($sdTecnico): self {
+        $this->sdTecnico = $sdTecnico;
+        return $this;
+    }
+
+    public function getSdPrioridad(): ?string {
+        return $sdPrioridad;
+    }
+    public function setSdPrioridad($sdPrioridad): self {
+        $this->sdPrioridad = $sdPrioridad;
+        return $this;
+    }
+
+    public function getSdCategoria(): ?string {
+        return $this->sdCategoria(); 
+    }
+    public function setSdCategoria($sdCategoria): self {
+        $this->sdCategoria = $sdCategoria;
+        return $this;
+    }
+
+    public function getSdSubcategoria(): ?string {
+        return $this->sdSubcategoria;
+    }
+    public function setSdSubcategoria($sdSubcategoria): self {
+        $this->sdSubcategoria = $sdSubcategoria;
+        return $this;
+    }
+
+    public function getSdArticulo(): ?string {
+        return $this->sdArticulo;
+    }
+    public function setSdArticulo($sdArticulo): ?self {
+        $this->sdArticulo = $sdArticulo;
+        return $this;
+    }
+
     public function getFechaImportacion(): ?\DateTime {
         return $this->fechaImportacion;
     }
@@ -236,5 +370,23 @@ class SDTicket
         }
 
         return $this;
+    }
+
+    public function isClienteMdE(){
+        return !empty($this->getSdSitio()) && in_array(trim($this->getSdSitio()), ['EDEM Site', 'Edificio Lanzadera']);
+    }
+
+    public function calcFechaRevision(){
+        $fechaAhora = new \DateTime(); 
+        $fechaRevision = $this->getFechaRevision(); 
+        if(!empty($fechaRevision) && $fechaRevision > $fechaAhora){
+            return $fechaRevision; 
+        }
+        if($this->isClienteMdE()){
+            $fechaAhora->add(new \DateInterval("PT1H"));
+        } else {
+            $fechaAhora->add(new \DateInterval("PT3H"));
+        }
+        return $fechaAhora;
     }
 }

@@ -19,6 +19,19 @@ class SDTicketRepository extends ServiceEntityRepository
         parent::__construct($registry, SDTicket::class);
     }
 
+    public function findPtesRevisar(){
+        $fechaRevision = new \DateTime();
+        $qb = $this->createQueryBuilder('s')
+            ->where('(s.fechaRevision is null) or (s.fechaRevision < :fechaRevision)')
+            ->andWhere('(s.sdEstado is null) or (s.sdEstado not like :estadoCerrado and s.sdEstado not like :estadoPteCierre)')
+            ->setParameter('fechaRevision', $fechaRevision)
+            ->setParameter('estadoCerrado', 'Pendiente de Cierre')
+            ->setParameter('estadoPteCierre', 'Cerrado')
+            ->orderBy('s.fechaRevision', 'ASC');
+        return $qb->getQuery()->getResult();
+    }
+
+
     // /**
     //  * @return SDTicket[] Returns an array of SDTicket objects
     //  */
