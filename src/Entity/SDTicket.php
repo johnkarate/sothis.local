@@ -301,7 +301,7 @@ class SDTicket
     }
 
     public function getSdCategoria(): ?string {
-        return $this->sdCategoria(); 
+        return $this->sdCategoria; 
     }
     public function setSdCategoria($sdCategoria): self {
         $this->sdCategoria = $sdCategoria;

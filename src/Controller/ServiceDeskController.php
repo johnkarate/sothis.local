@@ -50,16 +50,22 @@ class ServiceDeskController extends AbstractController
         }
         if(empty($ticketsInfo)){
             //OJO: algo no funciona no funciona bien -> avisamos de que algo no funciona
+            echo date('YmdHis').' - error - algo no funciona bien: 0 tickets en la vista '.$this->getParameter('servicedesk.vistas.registros')."\r\n";
+            return null;
         }
 
         foreach($ticketsInfo as $ticketInfo){
-            $ticketDB->setFechaImportacion(new \DateTime());
+            $ticketDB = $em->getRepository(SDTicket::class)->findOneBy(['sdId' => $ticketInfo['ticketId']]);
+            $ticketCreado = false;
+            if(empty($ticketDB)){
+                $ticketDB = new SDTicket();
+                $ticketDB->setFechaImportacion(new \DateTime());
+                $ticketCreado = true;
+            }
             $ticketDB->loadFromArray($ticketInfo);
 
-            //Revisaremos este ticket dentro de 3 horas... 
-            $fechaRevision = new \DateTime(); 
-            $fechaRevision->add(new \DateInterval("PT3H"));
-            $ticketDB->setFechaRevision($fechaRevision);
+            //Calcumamos la fecha de revisión del ticket
+            $ticketDB->setFechaRevision($ticketDB->calcFechaRevision());
 
             //Obtenemos los detalles del ticket... 
             // -> PTE
@@ -68,32 +74,38 @@ class ServiceDeskController extends AbstractController
             $em->persist($ticketDB);
 
             //Obtenemos y persistimos los registros de horas que tenemos... 
-            $registroHoras = $this->getRegistrosHoras($client, $ticketDB);
-            foreach($registroHoras as $registroHora){
-                //Importamos registroHoras... (si hay alguno, es nuevo, porque no tenemos ticket...)
-                $registroTiempo = new SDRegistroTiempo(); 
-                $registroTiempo->loadFromArray($registroHora);
-                
-                $ticketDB->addRegistrosTiempo($registroTiempo);
-
-                $em->persist($registroTiempo);
-            }
-
-            //Si el cliente es MdE -> creamos registro tiempo y categorizamos (si procede)
-            if($ticketDB->isClienteMdE()){
-                //Revisaremos el ticket cada hora...
-                $fechaRevision = new \DateTime(); 
-                $fechaRevision->add(new \DateInterval("PT1H"));
-                $ticketDB->setFechaRevision($fechaRevision);
-
-                //Si no tenemos registros de horas, creamos uno... 
-                if(empty($registroHoras)){
-                    $this->insertaRegistroTrabajoPrimeraRespuesta($client, $ticketDB);
+            if($ticketCreado){
+                echo date('YmdHis')." - Creamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
+                $registroHoras = $this->getRegistrosHoras($client, $ticketDB);
+                foreach($registroHoras as $registroHora){
+                    //Importamos registroHoras... (si hay alguno, es nuevo, porque no tenemos ticket...)
+                    $registroTiempo = new SDRegistroTiempo(); 
+                    $registroTiempo->loadFromArray($registroHora);
+                    
+                    $ticketDB->addRegistrosTiempo($registroTiempo);
+    
+                    $em->persist($registroTiempo);
                 }
-
-                //Categorizamos (si procede)
-                // -> PTE
-
+    
+                //Si el cliente es MdE -> creamos registro tiempo y categorizamos (si procede)
+                if($ticketDB->isClienteMdE()){
+                    //Revisaremos el ticket cada hora...
+                    $fechaRevision = new \DateTime(); 
+                    $fechaRevision->add(new \DateInterval("PT1H"));
+                    $ticketDB->setFechaRevision($fechaRevision);
+    
+                    //Si no tenemos registros de horas, creamos uno... 
+                    if(empty($registroHoras)){
+                        $this->insertaRegistroTrabajoPrimeraRespuesta($client, $ticketDB);
+                    }
+    
+                    //Categorizamos (si procede)
+                    if((empty($ticketDB->getSdCategoria()) || $ticketDB->getSdCategoria() == 'No Asignado')){
+                        echo date('YmdHis')." - Categorizamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
+                        $this->categorizaTicket($client, $ticketDB);
+                    }
+    
+                }    
             }
             $em->flush(); 
         }
@@ -130,7 +142,14 @@ class ServiceDeskController extends AbstractController
 
                 echo "Comprobamos ".$ticket->getNombre().'['.$ticket->getSdId().']'."\r\n";
                 //Actualizamos datos del ticket
-                $ticket->loadFromDetailsArray($ticketInfo);
+                if(empty($ticketInfo['Categoría'])){
+                    echo "Este ticket no tiene información disponible.";
+                    $ticket->setSdEstado('Error')
+                        ->setFechaRevision(new \DateTime('2030-01-01 00:00:00'));
+                } else {
+                    $ticket->loadFromDetailsArray($ticketInfo);
+                }
+                
 
                 //Actualizamos registros de horas
                 $registros = $this->getRegistrosHoras($client, $ticket);
@@ -149,6 +168,8 @@ class ServiceDeskController extends AbstractController
 
                     $em->persist($registroDB);
                 }
+
+                
 
                 //Seteamos nueva revisión
                 $ticket->setFechaRevision($ticket->calcFechaRevision());
@@ -230,8 +251,8 @@ class ServiceDeskController extends AbstractController
         $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WorkLogAction.do?createnew=worklog&SUBREQUEST=true&module=request&associatedEntity=request&scopeid=2&associatedEntityID='.$ticket->getSdId());
         $form = $crawler->selectButton('Guardar')->form();
         
-        $tecnicos = [50132, 50131, 50132, 50131, 18319, 26402, 16293, 18621];
-        $tecnicosNombre = ['david.lozano','jorge.cuesta','david.lozano', 'jorge.cuesta', 'david.rubio', 'juan.martinez', 'jesus.mata', 'daniel.vazquez'];
+        $tecnicos = [50132, 50131, 50132, 50131, 18319, 16293, 18621, 72128];
+        $tecnicosNombre = ['david.lozano','jorge.cuesta','david.lozano', 'jorge.cuesta', 'david.rubio', 'jesus.mata', 'daniel.vazquez', 'sebastian.rosado'];
         $tecnicoId = rand(0, sizeof($tecnicos) -1);
         $descripciones = ['Categorización', 'Categorizamos ticket', 'ticket', 'Imputación.', 'categorizamos ticket', 'imputamos ticket.'];
         $descripcionesId = rand(0,sizeof($descripciones) -1);
@@ -327,6 +348,63 @@ class ServiceDeskController extends AbstractController
         ]));
     }
 
+
+    /**
+     * Gestión de CATEGORIZACIÓN DE TICKETS
+     */
+    public function calcInfoByTicket(SDTicket $ticket){
+        $tecnicoOnline = 72128; // Sebastian Rosado
+        $tecnicosLanzadera = [18319, 16293]; // Jesús Mata + David Rubio
+        $tecnicosEDEM = [50132, 50131]; // David Lozano + Jorge Cuesta
+
+        $ticketInfo = [
+            'requestType' => 2, // Tipo de Solicitud = Petición de servicio 
+            'status' => 302, // Estado = Asignado
+            'modeID' => 1, //Email
+
+            'category' => 8404, // Soporte Usuario - MdE
+            'subCategory' => 11130, // Gestión Puesto de Trabajo
+            'item' => 10926, // Otros
+
+            'siteID' => 18362, // Lanzadera = 2107 || EDEM = 18362
+            'group' => 18150, // CO5-N1-SoporteUsuario
+            'technician' => 50132 // David Lozano
+        ];
+
+        if(strtolower($ticket->getSdSitio()) == 'edificio lanzadera'){
+            $ticketInfo['siteID'] = 2107;
+            $ticketInfo['technician'] = $tecnicosLanzadera[rand(0, sizeof($tecnicosLanzadera) -1)];
+        } else {
+            $ticketInfo['siteID'] = 18362;
+            $ticketInfo['technician'] = $tecnicosEDEM[rand(0, sizeof($tecnicosEDEM) -1)];
+        }
+
+        //Revisar datos por defecto... 
+
+        //Calculamos si es prestamo
+        $isPrestamo = false;
+        if($isPrestamo){
+            $ticketInfo['category'] = 8404; // Soporte Usuario - MdE
+            $ticketInfo['subCategory'] = 11128; //Gestión Activos
+            $ticketInfo['item'] = 10897; //Alquiler equipo
+            $ticketInfo['technician'] = $tecnicoOnline; //Sebastian Rosado
+        }
+
+
+        return $ticketInfo;
+    }
+
+    public function setInfoByTicket(Client $client, SDTicket $ticket, $ticketInfo){
+        $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WorkOrder.do?woMode=editWO&fromListView=true&fromPage=reqDetails&woID='.$ticket->getSdId());
+        $form = $crawler->selectButton('Actualizar solicitud')->form();
+        $form->disableValidation(); 
+
+        $crawler = $client->submit($form, $ticketInfo);
+    }
+
+    public function categorizaTicket(Client $client, SDTicket $ticket){
+        $this->setInfoByTicket($client, $ticket, $this->calcInfoByTicket($ticket));
+    }
 
 }
 

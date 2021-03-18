@@ -28,7 +28,14 @@ class SDTicketRepository extends ServiceEntityRepository
             ->setParameter('estadoCerrado', 'Pendiente de Cierre')
             ->setParameter('estadoPteCierre', 'Cerrado')
             ->orderBy('s.fechaRevision', 'ASC');
-        return $qb->getQuery()->getResult();
+        $ticketsRevision = $qb->getQuery()->getResult();
+
+        $qbInfo = $this->createQueryBuilder('s')
+            ->where('s.sdCategoria is null')
+            ->orderBy('s.fechaRevision', 'ASC');
+        $ticketsInfo = $qbInfo->getQuery()->getResult(); 
+
+        return array_merge($ticketsRevision, $ticketsInfo);   
     }
 
 
