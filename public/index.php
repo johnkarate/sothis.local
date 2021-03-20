@@ -1,6 +1,6 @@
 <?php
 
-header('Location: https://www.youtube.com/watch?v=kqcIVntQIzc');
+header('Location: https://www.youtube.com/watch?v=aQICFuatEgE');
 exit ;
 
 /**
