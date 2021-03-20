@@ -42,7 +42,7 @@ $commands = array(
 	'git submodule update',
 	'git submodule status',
     'php /www/sothis.local/bin/console doctrine:schema:update --force',
-    'php /www/sothis.local/bin/console cache:clean',
+    'php /www/sothis.local/bin/console cache:clear',
     'php /www/sothis.local/bin/console cache:warmup',
 );
 
