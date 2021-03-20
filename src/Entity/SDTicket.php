@@ -389,4 +389,24 @@ class SDTicket
         }
         return $fechaAhora;
     }
+
+    /**
+     * Devuelve true si el nombre del ticket coincide con todas las strings de $todasStr y/o coincide con alguna de las $optionalStr
+     */
+    public function ticketNombreCoincideStrings($todasStr=[], $opcionalStr=[]){
+        $matchAlguna = false;
+        $ticketNombre = $this->getNombre(); 
+
+        foreach($todasStr as $str){
+            if(stripos($str, $ticketNombre) === false){
+                return false;
+            }
+        }
+        foreach($opcionalStr as $str){
+            if(!$matchAlguna && stripos($str, $ticketNombre)){
+                return true;
+            }
+        }
+        return $matchAlguna;
+    }
 }

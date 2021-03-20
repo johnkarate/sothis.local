@@ -101,8 +101,10 @@ class ServiceDeskController extends AbstractController
     
                     //Categorizamos (si procede)
                     if((empty($ticketDB->getSdCategoria()) || $ticketDB->getSdCategoria() == 'No Asignado')){
-                        echo date('YmdHis')." - Categorizamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
-                        $this->categorizaTicket($client, $ticketDB);
+                        if(empty($ticketDB->getSdGrupo()) || $ticketDB->getSdGrupo() !== 'CO5-N1-SoporteUsuario'){
+                            echo date('YmdHis')." - Categorizamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
+                            $this->categorizaTicket($client, $ticketDB);
+                        }
                     }
     
                 }    
@@ -168,8 +170,6 @@ class ServiceDeskController extends AbstractController
 
                     $em->persist($registroDB);
                 }
-
-                
 
                 //Seteamos nueva revisión
                 $ticket->setFechaRevision($ticket->calcFechaRevision());
@@ -330,6 +330,7 @@ class ServiceDeskController extends AbstractController
             // Load cookies and populate browserkit's cookie jar
             $cookieJar = $client->getCookieJar();
             $cookies = unserialize(file_get_contents($cookieFilePath));
+            $cookies = (empty($cookies))? [] : $cookies;
             foreach ($cookies as $cookie) {
                 $cookieJar->set($cookie);
             }
@@ -353,9 +354,13 @@ class ServiceDeskController extends AbstractController
      * Gestión de CATEGORIZACIÓN DE TICKETS
      */
     public function calcInfoByTicket(SDTicket $ticket){
-        $tecnicoOnline = 72128; // Sebastian Rosado
+        $tecnicosOnline = [72128]; // Sebastian Rosado
         $tecnicosLanzadera = [18319, 16293]; // Jesús Mata + David Rubio
         $tecnicosEDEM = [50132, 50131]; // David Lozano + Jorge Cuesta
+
+        $tecnicoOnline = $tecnicosOnline[rand(0, sizeof($tecnicosOnline) -1)];
+        $tecnicoLanzadera = $tecnicosLanzadera[rand(0, sizeof($tecnicosLanzadera) -1)];
+        $tecnicoEDEM = $tecnicosEDEM[rand(0, sizeof($tecnicosEDEM) -1)];
 
         $ticketInfo = [
             'requestType' => 2, // Tipo de Solicitud = Petición de servicio 
@@ -373,37 +378,79 @@ class ServiceDeskController extends AbstractController
 
         if(strtolower($ticket->getSdSitio()) == 'edificio lanzadera'){
             $ticketInfo['siteID'] = 2107;
-            $ticketInfo['technician'] = $tecnicosLanzadera[rand(0, sizeof($tecnicosLanzadera) -1)];
+            $ticketInfo['technician'] = $tecnicoLanzadera;
         } else {
             $ticketInfo['siteID'] = 18362;
-            $ticketInfo['technician'] = $tecnicosEDEM[rand(0, sizeof($tecnicosEDEM) -1)];
+            $ticketInfo['technician'] = $tecnicoEDEM;
         }
 
-        //Revisar datos por defecto... 
+        //Comrpobamos si debemos categorizar el ticket (es decir, está asignado a otras colas que no sea CO5-N1-SoporteUsuario):
+        $categorizamosNosotros = (empty($ticket->getSdGrupo())) || $ticket->getSdGrupo() == 'CO5-N1-SoporteUsuario' ;
+        if(!$categorizamosNosotros){
+            return false;
+        }
 
-        //Calculamos si es prestamo
-        $isPrestamo = false;
-        if($isPrestamo){
+        $categoriaPersonalizada = !$categorizamosNosotros;
+        //Revisar datos por defecto... 
+        if(!$categoriaPersonalizada &&  $ticket->ticketNombreCoincideStrings(['revisión diaria visual de los cpd'])){
+            $ticketInfo['requestType'] = 601; // Tipo: Rutina
+            $ticketInfo['modeID'] = 301; // Modo: Herramienta ServiceDesk
+            $ticketInfo['technician'] = $tecnicoOnline;
+            $categoriaPersonalizada = true;
+        }
+
+        if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['campus'])){
+            $ticketInfo['item'] = 10918; //Aula Virtual
+            $categoriaPersonalizada = true;
+        }
+        if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['intranet'])){
+            $ticketInfo['item'] = 10924; //Intranet
+            $categoriaPersonalizada = true;
+        }
+        if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['alta'], ['trabajador', 'emprendedor', 'alumn', 'staff', 'proyecto', 'curso'])){
+            $ticketInfo['item'] = 10917; //Alta usuario
+            $categoriaPersonalizada = true;
+        }
+        if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['baja'], ['trabajador', 'emprendedor', 'alumn', 'staff', 'proyecto', 'curso'])){
+            $ticketInfo['item'] = 10919; //Baja usuario
+            $categoriaPersonalizada = true;
+        }
+        if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings([],['entrar', 'claves', 'contraseña', 'reseteo'])){
+            $ticketInfo['item'] = 10929; //Reseteo claves
+            $categoriaPersonalizada = true;
+        }
+        //Préstamo
+        if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['prestamo'])){
             $ticketInfo['category'] = 8404; // Soporte Usuario - MdE
             $ticketInfo['subCategory'] = 11128; //Gestión Activos
             $ticketInfo['item'] = 10897; //Alquiler equipo
             $ticketInfo['technician'] = $tecnicoOnline; //Sebastian Rosado
+            $categoriaPersonalizada = true;
         }
 
 
         return $ticketInfo;
     }
 
+    /**
+     * Inserta la información del ticket (devolviendo true o false según hemos categorizado nosotros o no)
+     */
     public function setInfoByTicket(Client $client, SDTicket $ticket, $ticketInfo){
+        if(empty($ticketInfo)){
+            return false;
+        }
+
         $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WorkOrder.do?woMode=editWO&fromListView=true&fromPage=reqDetails&woID='.$ticket->getSdId());
         $form = $crawler->selectButton('Actualizar solicitud')->form();
         $form->disableValidation(); 
-
         $crawler = $client->submit($form, $ticketInfo);
+        return true;
     }
-
+    /**
+     * Categoriza el ticket y devuelve true o false según si lo hemos categorizado nosotros o no... 
+     */
     public function categorizaTicket(Client $client, SDTicket $ticket){
-        $this->setInfoByTicket($client, $ticket, $this->calcInfoByTicket($ticket));
+        return $this->setInfoByTicket($client, $ticket, $this->calcInfoByTicket($ticket));
     }
 
 }
