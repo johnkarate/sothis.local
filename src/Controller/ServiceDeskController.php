@@ -383,12 +383,19 @@ class ServiceDeskController extends AbstractController
             $ticketInfo['siteID'] = 18362;
             $ticketInfo['technician'] = $tecnicoEDEM;
         }
-
+      
         //Comrpobamos si debemos categorizar el ticket (es decir, está asignado a otras colas que no sea CO5-N1-SoporteUsuario):
         $categorizamosNosotros = (empty($ticket->getSdGrupo())) || $ticket->getSdGrupo() == 'CO5-N1-SoporteUsuario' ;
         if(!$categorizamosNosotros){
             return false;
         }
+
+        //Si el título pone EDEM, lo categorizamos en EDEM, pendiente de ver la categoría "real"
+        if($ticket->ticketNombreCoincideStrings([], ['[EDEM]', '[MDE - EDEM]'])){
+            $ticketInfo['siteID'] = 18362;
+            $ticketInfo['technician'] = $tecnicoEDEM;
+        }
+
 
         $categoriaPersonalizada = !$categorizamosNosotros;
         //Revisar datos por defecto... 
