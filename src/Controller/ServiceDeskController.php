@@ -363,9 +363,9 @@ class ServiceDeskController extends AbstractController
         $tecnicoEDEM = $tecnicosEDEM[rand(0, sizeof($tecnicosEDEM) -1)];
 
         $ticketInfo = [
-            'requestType' => 2, // Tipo de Solicitud = Petición de servicio 
-            'status' => 302, // Estado = Asignado
-            'modeID' => 1, //Email
+            //'requestType' => 2, // Tipo de Solicitud = Petición de servicio 
+            //'status' => 302, // Estado = Asignado
+            //'modeID' => 1, //Email
 
             'category' => 8404, // Soporte Usuario - MdE
             'subCategory' => 11130, // Gestión Puesto de Trabajo
@@ -407,22 +407,27 @@ class ServiceDeskController extends AbstractController
         }
 
         if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['campus'])){
+            $ticketInfo['requestType'] = 2; // Petición de servicio
             $ticketInfo['item'] = 10918; //Aula Virtual
             $categoriaPersonalizada = true;
         }
         if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['intranet'])){
+            $ticketInfo['requestType'] = 2; // Petición de servicio
             $ticketInfo['item'] = 10924; //Intranet
             $categoriaPersonalizada = true;
         }
         if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['alta'], ['trabajador', 'emprendedor', 'alumn', 'staff', 'proyecto', 'curso'])){
+            $ticketInfo['requestType'] = 2; // Petición de servicio
             $ticketInfo['item'] = 10917; //Alta usuario
             $categoriaPersonalizada = true;
         }
         if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['baja'], ['trabajador', 'emprendedor', 'alumn', 'staff', 'proyecto', 'curso'])){
+            $ticketInfo['requestType'] = 2; // Petición de servicio
             $ticketInfo['item'] = 10919; //Baja usuario
             $categoriaPersonalizada = true;
         }
         if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings([],['entrar', 'claves', 'contraseña', 'reseteo'])){
+            $ticketInfo['requestType'] = 2; // Petición de servicio
             $ticketInfo['item'] = 10929; //Reseteo claves
             $categoriaPersonalizada = true;
         }
