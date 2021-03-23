@@ -107,7 +107,7 @@ class ServiceDeskController extends AbstractController
                     }
 
                     //Categorizamos (si procede)
-                    if((empty($ticketDB->getSdCategoria()) || $ticketDB->getSdCategoria() == 'No Asignado') && (empty($ticketDB->getSdGrupo()) || $ticketDB->getSdGrupo() !== 'CO5-N1-SoporteUsuario')){
+                    if((empty($ticketDB->getSdCategoria()) || $ticketDB->getSdCategoria() == 'No Asignado') && (empty($ticketDB->getSdGrupo()) || $ticketDB->getSdGrupo() == 'CO5-N1-SoporteUsuario')){
                         echo date('YmdHis')." - Categorizamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
                         $this->categorizaTicket($client, $ticketDB);
                     }
@@ -174,6 +174,13 @@ class ServiceDeskController extends AbstractController
                     $registroDB->loadFromArray($registroInfo);
 
                     $em->persist($registroDB);
+                }
+
+                //Categorizamos si procede
+                 //Categorizamos (si procede)
+                 if($ticket->isClienteMdE() && (empty($ticket->getSdCategoria()) || $ticket->getSdCategoria() == 'No Asignado') && (empty($ticket->getSdGrupo()) || $ticket->getSdGrupo() == 'CO5-N1-SoporteUsuario')){
+                    echo date('YmdHis')." - Categorizamos ticket ".$ticket->getNombre(). ' ['.$ticket->getSdId().' - '.$ticket->getSdSitio()."] \r\n";
+                    $this->categorizaTicket($client, $ticket);
                 }
 
                 //Seteamos nueva revisión
