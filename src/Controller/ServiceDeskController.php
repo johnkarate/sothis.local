@@ -99,12 +99,17 @@ class ServiceDeskController extends AbstractController
                         $this->insertaRegistroTrabajoPrimeraRespuesta($client, $ticketDB);
                     }
     
+                    //Obtenemos los detalles del ticket
+                    $ticketInfo = $this->getTicketDetail($client, $ticketDB->getSdId());
+                    if(!empty($ticketInfo)){
+                        $ticketDB->loadFromDetailsArray($ticketInfo);
+                        $em->persist($ticketDB);
+                    }
+
                     //Categorizamos (si procede)
-                    if((empty($ticketDB->getSdCategoria()) || $ticketDB->getSdCategoria() == 'No Asignado')){
-                        if(empty($ticketDB->getSdGrupo()) || $ticketDB->getSdGrupo() !== 'CO5-N1-SoporteUsuario'){
-                            echo date('YmdHis')." - Categorizamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
-                            $this->categorizaTicket($client, $ticketDB);
-                        }
+                    if((empty($ticketDB->getSdCategoria()) || $ticketDB->getSdCategoria() == 'No Asignado') && (empty($ticketDB->getSdGrupo()) || $ticketDB->getSdGrupo() !== 'CO5-N1-SoporteUsuario')){
+                        echo date('YmdHis')." - Categorizamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
+                        $this->categorizaTicket($client, $ticketDB);
                     }
     
                 }    
