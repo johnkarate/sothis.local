@@ -107,7 +107,7 @@ class ServiceDeskController extends AbstractController
                     }
 
                     //Categorizamos (si procede)
-                    if((empty($ticketDB->getSdCategoria()) || $ticketDB->getSdCategoria() == 'No Asignado') && (empty($ticketDB->getSdGrupo()) || $ticketDB->getSdGrupo() == 'CO5-N1-SoporteUsuario')){
+                    if($ticketDB->isCategorizable()){
                         echo date('YmdHis')." - Categorizamos ticket ".$ticketDB->getNombre(). ' ['.$ticketDB->getSdId().' - '.$ticketDB->getSdSitio()."] \r\n";
                         $this->categorizaTicket($client, $ticketDB);
                     }
@@ -178,7 +178,7 @@ class ServiceDeskController extends AbstractController
 
                 //Categorizamos si procede
                  //Categorizamos (si procede)
-                 if($ticket->isClienteMdE() && (empty($ticket->getSdCategoria()) || $ticket->getSdCategoria() == 'No Asignado') && (empty($ticket->getSdGrupo()) || $ticket->getSdGrupo() == 'CO5-N1-SoporteUsuario')){
+                 if($ticket->isCategorizable()){
                     echo date('YmdHis')." - Categorizamos ticket ".$ticket->getNombre(). ' ['.$ticket->getSdId().' - '.$ticket->getSdSitio()."] \r\n";
                     $this->categorizaTicket($client, $ticket);
                 }
@@ -397,8 +397,7 @@ class ServiceDeskController extends AbstractController
         }
       
         //Comrpobamos si debemos categorizar el ticket (es decir, está asignado a otras colas que no sea CO5-N1-SoporteUsuario):
-        $categorizamosNosotros = (empty($ticket->getSdGrupo())) || $ticket->getSdGrupo() == 'CO5-N1-SoporteUsuario' ;
-        if(!$categorizamosNosotros){
+        if(!$ticket->isCategorizable()){
             return false;
         }
 
@@ -409,7 +408,7 @@ class ServiceDeskController extends AbstractController
         }
 
 
-        $categoriaPersonalizada = !$categorizamosNosotros;
+        $categoriaPersonalizada = false;
         //Revisar datos por defecto... 
         if(!$categoriaPersonalizada &&  $ticket->ticketNombreCoincideStrings(['revisión diaria visual de los cpd'])){
             $ticketInfo['requestType'] = 601; // Tipo: Rutina
@@ -445,6 +444,7 @@ class ServiceDeskController extends AbstractController
         }
         //Préstamo
         if(!$categoriaPersonalizada && $ticket->ticketNombreCoincideStrings(['prestamo'])){
+            $ticketInfo['requestType'] = 2; // Petición de servicio
             $ticketInfo['category'] = 8404; // Soporte Usuario - MdE
             $ticketInfo['subCategory'] = 11128; //Gestión Activos
             $ticketInfo['item'] = 10897; //Alquiler equipo
@@ -452,6 +452,9 @@ class ServiceDeskController extends AbstractController
             $categoriaPersonalizada = true;
         }
 
+        if(empty($ticketInfo['requestType']) && (empty($ticket->getSdTipoSolicitud()) || strtolower(trim($ticket->getSdTipoSolicitud())) == 'no asignado')){
+            $ticketInfo['requestType'] = 2; // Petición de servicio
+        }
 
         return $ticketInfo;
     }
