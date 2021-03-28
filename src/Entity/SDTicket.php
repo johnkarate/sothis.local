@@ -373,7 +373,11 @@ class SDTicket
     }
 
     public function isClienteMdE(){
-        return !empty($this->getSdSitio()) && in_array(trim($this->getSdSitio()), ['EDEM Site', 'Edificio Lanzadera']);
+        return (!empty($this->getSdSitio())) && in_array(trim($this->getSdSitio()), ['EDEM Site', 'Edificio Lanzadera']);
+    }
+    public function isCategorizable(){
+        $isCategorizable = $this->isClienteMdE() && (empty($this->getSdTipoSolicitud()) || strtolower(trim($this->getSdTipoSolicitud())) == 'no asignado') && (empty($this->getSdGrupo()) || strtolower(trim($this->getSdGrupo())) == 'co5-n1-soporteusuario');
+        return $isCategorizable;
     }
 
     public function calcFechaRevision(){
