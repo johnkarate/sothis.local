@@ -114,7 +114,7 @@ class ServiceDeskController extends AbstractController
     
                 }    
             }
-            //$em->flush(); 
+            $em->flush(); 
         }
         return null;
     }
