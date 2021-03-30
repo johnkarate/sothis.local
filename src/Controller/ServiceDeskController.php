@@ -456,6 +456,7 @@ class ServiceDeskController extends AbstractController
             $ticketInfo['requestType'] = 2; // Petición de servicio
         }
 
+        unset($ticketInfo['technician']);
         return $ticketInfo;
     }
 
