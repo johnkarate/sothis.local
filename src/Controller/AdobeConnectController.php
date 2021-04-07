@@ -25,8 +25,15 @@ class AdobeConnectController extends AbstractController {
 
         $grabacion = $em->getRepository(AdobeGrabacion::class)->findOneByEstado('insertado');
         $grabacion->setEstado('descargando');
+
+
         $em->persist($grabacion);
         $em->flush(); 
+
+
+        echo '<p>'.$grabacion->getNombre().'</p>';
+        echo '<p><a href="'.$grabacion->getLinkDesconectado().'"> Hacer desconectado </a></p>';
+        echo '<br /><br /><br />';
         
         dump($grabacion);
         die();
