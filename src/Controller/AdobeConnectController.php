@@ -22,9 +22,11 @@ class AdobeConnectController extends AbstractController {
      */
     public function getUrlAdobe(){
         $em = $this->getDoctrine()->getManager();
+
+        
         echo 'Test URL ADOBE';
         die(); 
-        
+
     }
 
 

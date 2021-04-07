@@ -43,6 +43,11 @@ class AdobeGrabacion
     private $acceso;
 
     /**
+     * @ORM\Column(type="string", length=32, nullable=true)
+     */
+    private $estado;
+
+    /**
      * @ORM\Column(type="integer", nullable=true)
      */
     private $duracionSegundos;
@@ -51,6 +56,10 @@ class AdobeGrabacion
      * @ORM\ManyToOne(targetEntity=AdobeReunion::class, inversedBy="grabaciones")
      */
     private $reunion;
+
+    public function __constructor(){
+        $this->estado = 'insertado';
+    }
 
     public function getId(): ?int
     {
@@ -137,6 +146,18 @@ class AdobeGrabacion
     public function setReunion(?AdobeReunion $reunion): self
     {
         $this->reunion = $reunion;
+
+        return $this;
+    }
+
+    public function getEstado(): ?string
+    {
+        return $this->estado;
+    }
+
+    public function setEstado(?string $estado): self
+    {
+        $this->estado = $estado;
 
         return $this;
     }
