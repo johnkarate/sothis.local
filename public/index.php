@@ -1,10 +1,8 @@
 <?php
-
+/**
 header('Location: https://www.youtube.com/watch?v=xU4wN8WbTfE');
 exit ;
-
-/**
-
+*/
 use App\Kernel;
 use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\ErrorHandler\Debug;
@@ -25,4 +23,3 @@ $request = Request::createFromGlobals();
 $response = $kernel->handle($request);
 $response->send();
 $kernel->terminate($request, $response);
-*/
