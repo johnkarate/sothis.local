@@ -20,6 +20,14 @@ class AdobeConnectController extends AbstractController {
     /**
      * @Route("/adobe/")
      */
+    public function getUrlAdobe(){
+        $em = $this->getDoctrine()->getManager();
+        echo 'Test URL ADOBE';
+        die(); 
+        
+    }
+
+
     public function infoReuniones() 
     {
         $client = new Client(HttpClient::create(['verify_peer' => false, 'verify_host' => false]));
