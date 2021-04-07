@@ -31,8 +31,12 @@ class AdobeConnectController extends AbstractController {
         $em->flush(); 
 
 
+        $finGrabacion = new \DateTime(); 
+        $finGrabacion->add(new \DateInterval('PT'.$grabacion->getDuracionSegundos().'S'));
+
         echo '<p>'.$grabacion->getNombre().'</p>';
         echo '<p><a href="'.$grabacion->getLinkDesconectado().'"> Hacer desconectado </a></p>';
+        echo '<p>Fin descarga: '.$finGrabacion->format('H:i').'</p>';
         echo '<br /><br /><br />';
         echo '<script type="text/javascript">
         window.open("'.$grabacion->getLinkDesconectado().'", \'_blank\');
