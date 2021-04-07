@@ -24,10 +24,12 @@ class AdobeConnectController extends AbstractController {
         $em = $this->getDoctrine()->getManager();
 
         $grabacion = $em->getRepository(AdobeGrabacion::class)->findOneByEstado('insertado');
-
+        $grabacion->setEstado('descargando');
+        $em->persist($grabacion);
+        $em->flush(); 
+        
         dump($grabacion);
-        die(); 
-
+        die();
     }
 
 
