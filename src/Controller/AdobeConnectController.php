@@ -25,7 +25,7 @@ class AdobeConnectController extends AbstractController {
 
         $grabacion = $em->getRepository(AdobeGrabacion::class)->findOneByEstado('insertado');
         $grabacion->setEstado('descargando');
-
+        $grabacion->setFechaDescarga(new \DateTime());
 
         $em->persist($grabacion);
         $em->flush(); 

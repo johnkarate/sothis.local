@@ -53,6 +53,11 @@ class AdobeGrabacion
     private $duracionSegundos;
 
     /**
+     * @ORM\Column(type="datetime", nullable=true)
+     */
+    private $fechaDescarga;
+
+    /**
      * @ORM\ManyToOne(targetEntity=AdobeReunion::class, inversedBy="grabaciones")
      */
     private $reunion;
@@ -158,6 +163,18 @@ class AdobeGrabacion
     public function setEstado(?string $estado): self
     {
         $this->estado = $estado;
+
+        return $this;
+    }
+
+    public function getFechaDescarga(): ?\DateTime
+    {
+        return $this->fechaDescarga;
+    }
+
+    public function setFechaDescarga(?\DateTime $fechaDescarga): self
+    {
+        $this->fechaDescarga = $fechaDescarga;
 
         return $this;
     }
