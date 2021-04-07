@@ -34,7 +34,10 @@ class AdobeConnectController extends AbstractController {
         echo '<p>'.$grabacion->getNombre().'</p>';
         echo '<p><a href="'.$grabacion->getLinkDesconectado().'"> Hacer desconectado </a></p>';
         echo '<br /><br /><br />';
-        
+        echo '<script type="text/javascript">
+        window.open("'.$grabacion->getLinkDesconectado().'", \'_blank\');
+        </script>';
+
         dump($grabacion);
         die();
     }
