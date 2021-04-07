@@ -23,8 +23,9 @@ class AdobeConnectController extends AbstractController {
     public function getUrlAdobe(){
         $em = $this->getDoctrine()->getManager();
 
-        
-        echo 'Test URL ADOBE';
+        $grabacion = $em->getRepository(AdobeGrabacion::class)->findOneByEstado('insertado');
+
+        dump($grabacion);
         die(); 
 
     }
