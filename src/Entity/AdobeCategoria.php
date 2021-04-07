@@ -165,7 +165,7 @@ class AdobeCategoria
         return $this->reuniones;
     }
 
-    public function addReunion(AdobeReuniones $reunion): self
+    public function addReunion(AdobeReunion $reunion): self
     {
         if (!$this->reuniones->contains($reunion)) {
             $this->reuniones[] = $reunion;
