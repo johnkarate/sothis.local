@@ -58,6 +58,11 @@ class AdobeGrabacion
     private $fechaDescarga;
 
     /**
+     * @ORM\Column(type="integer", nullable=true)
+     */
+    private $prioridad;
+
+    /**
      * @ORM\ManyToOne(targetEntity=AdobeReunion::class, inversedBy="grabaciones")
      */
     private $reunion;
@@ -163,6 +168,18 @@ class AdobeGrabacion
     public function setEstado(?string $estado): self
     {
         $this->estado = $estado;
+
+        return $this;
+    }
+
+    public function getPrioridad(): ?int
+    {
+        return $this->prioridad;
+    }
+
+    public function setPrioridad(?int $prioridad): self
+    {
+        $this->prioridad = $prioridad;
 
         return $this;
     }
