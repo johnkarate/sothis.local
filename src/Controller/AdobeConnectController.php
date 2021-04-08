@@ -23,7 +23,7 @@ class AdobeConnectController extends AbstractController {
     public function getUrlAdobe(){
         $em = $this->getDoctrine()->getManager();
 
-        $grabacion = $em->getRepository(AdobeGrabacion::class)->findOneByEstado('insertado');
+        $grabacion = $em->getRepository(AdobeGrabacion::class)->findOneByEstado('insertado')->orderBy('prioridad', 'ASC');
         $grabacion->setEstado('descargando');
         $grabacion->setFechaDescarga(new \DateTime());
 
