@@ -61,7 +61,8 @@ class AdobeConnectController extends AbstractController {
         
         $em = $this->getDoctrine()->getManager();
         
-        $scoR = 2689963968;
+        //$scoR = 2689963968;
+        $scoR = 4364992324;
         $info = $this->procesaSCOID($client, $scoR);
         if(empty($info['reuniones']) && empty($info['categorias'])){
             $this->resetCookies(); 
