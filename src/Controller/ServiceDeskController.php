@@ -100,8 +100,8 @@ class ServiceDeskController extends AbstractController
                     }
 
                     //Si el ticket no tiene grupo, siendo de MdE, nos lo importamos: 
-                    if(empty($ticketDB->getGrupo()) || trim($ticketDB->getGrupo()) == '-'){
-                        $ticketDB->setGrupo('CO5-N1-SoporteUsuario');
+                    if(empty($ticketDB->getSdGrupo()) || trim($ticketDB->getSdGrupo()) == '-'){
+                        $ticketDB->getSdGrupo('CO5-N1-SoporteUsuario');
                         $this->setGrupoByTicket($client, $ticketDB);
                     }
     
