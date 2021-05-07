@@ -98,6 +98,12 @@ class ServiceDeskController extends AbstractController
                     if(empty($registroHoras)){
                         $this->insertaRegistroTrabajoPrimeraRespuesta($client, $ticketDB);
                     }
+
+                    //Si el ticket no tiene grupo, siendo de MdE, nos lo importamos: 
+                    if(empty($ticketDB->getGrupo()) || trim($ticketDB->getGrupo()) == '-'){
+                        $ticketDB->setGrupo('CO5-N1-SoporteUsuario');
+                        $this->setGrupoByTicket($client, $ticketDB);
+                    }
     
                     //Obtenemos los detalles del ticket
                     $ticketInfo = $this->getTicketDetail($client, $ticketDB->getSdId());
@@ -474,6 +480,19 @@ class ServiceDeskController extends AbstractController
         $crawler = $client->submit($form, $ticketInfo);
         return true;
     }
+
+    public function setGrupoByTicket(Client $client, SDTicket $ticket, $ticketGrupo='2194'){
+        //2191 = CO5-N1-SoporteUsuario
+
+        $crawler = $client->request('GET', $this->getParameter('servicedesk.domain').'WorkOrder.do?woMode=editWO&fromListView=true&fromPage=reqDetails&woID='.$ticket->getSdId());
+        $form = $crawler->selectButton('Actualizar solicitud')->form();
+        $form->disableValidation(); 
+        $crawler = $client->submit($form, [
+            'group' => $ticketGrupo
+        ]);
+        return true;
+    }
+
     /**
      * Categoriza el ticket y devuelve true o false según si lo hemos categorizado nosotros o no... 
      */
